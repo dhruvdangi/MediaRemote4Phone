@@ -17,5 +17,6 @@
         android:textOff=""
         android:textOn=""
         android:focusable="false"
+        android:onClick="onToggleClicked"
         android:focusableInTouchMode="false" />
 </RelativeLayout>
