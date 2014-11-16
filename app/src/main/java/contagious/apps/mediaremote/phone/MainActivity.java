@@ -1,8 +1,11 @@
 package contagious.apps.mediaremote.phone;
 
 import android.app.Activity;
+import android.content.BroadcastReceiver;
 import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.os.Bundle;
 import android.os.IBinder;
@@ -10,6 +13,7 @@ import android.os.RemoteException;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.Toast;
 import android.widget.ToggleButton;
 
 import com.lge.qpair.api.r1.IPeerContext;
@@ -19,23 +23,67 @@ import com.lge.qpair.api.r1.QPairConstants;
 
 public class MainActivity extends Activity {
 
+    public class QPairServiceConnection implements ServiceConnection {
+
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            IPeerContext peerContext = IPeerContext.Stub.asInterface(service);
+            try {
+                IPeerIntent peerIntent = peerContext.newPeerIntent();
+                peerIntent.setPackage("contagious.apps.mediaremote.tablet.PhoneService");
+//                peerIntent.setClassName("contagious.apps.mediaremote.tablet",
+//                        "contagious.apps.mediaremote.tablet.PhoneService");
+
+                peerIntent.putStringExtra("ACTION", toggle ? "PLAY" : "PAUSE");
+
+                IPeerIntent callback = peerContext.newPeerIntent();
+                callback.setAction(CALLBACK_ACTION);
+                peerContext.startServiceOnPeer(peerIntent, callback);
+            } catch (RemoteException e) {
+                e.printStackTrace();
+            }
+            unbindService(this);
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+
+        }
+
+    }
+
     private Boolean toggle;
+    private String CALLBACK_ACTION = getClass().getPackage().getName() + "ACTION_CALLBACK";
+    private BroadcastReceiver callbackReceiver;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        callbackReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                String error = "Error: " + intent.getStringExtra(QPairConstants.EXTRA_CAUSE);
+                Toast.makeText(getApplicationContext(), error, Toast.LENGTH_LONG).show();
+            }
+        };
+        registerReceiver(callbackReceiver, new IntentFilter(CALLBACK_ACTION));
     }
 
-    public void onToggleClicked(View view){
+    @Override
+    protected void onDestroy() {
+        unregisterReceiver(callbackReceiver);
+        super.onDestroy();
+    }
 
-        if(((ToggleButton)view).isChecked())
-            toggle=true;
+    public void onPlayPauseClick(View view) {
+
+        if (((ToggleButton) view).isChecked())
+            toggle = true;
         else
-            toggle=false;
+            toggle = false;
         Intent intent = new Intent(QPairConstants.ACTION_QPAIR_SERVICE);
         bindService(intent, new QPairServiceConnection(), 0);
-
-
     }
 
     @Override
@@ -56,35 +104,5 @@ public class MainActivity extends Activity {
         }
         return super.onOptionsItemSelected(item);
     }
-    public class QPairServiceConnection implements ServiceConnection {
 
-        @Override
-        public void onServiceConnected(ComponentName name, IBinder service) {
-
-            IPeerContext iPeerContext = IPeerContext.Stub.asInterface(service);
-            try {
-                    IPeerIntent peerIntent = iPeerContext.newPeerIntent();
-                    peerIntent.setPackage("contagious.apps.mediaremote.tablet.PhoneService");
-
-                    if(toggle)
-                    peerIntent.putStringExtra("ACTION", "PLAY");
-                    else
-                    peerIntent.putStringExtra("ACTION","PAUSE");
-
-                    IPeerIntent callback = iPeerContext.newPeerIntent();
-                    callback.setAction("contagious.apps.mediaremote.tablet.ACTION_CALLBACK");
-                    iPeerContext.startServiceOnPeer(peerIntent, callback);
-                      }
-                catch (RemoteException e) {
-                e.printStackTrace();
-            }
-            unbindService(this);
-
-        }
-        @Override
-        public void onServiceDisconnected(ComponentName name) {
-
-        }
-
-    }
 }
