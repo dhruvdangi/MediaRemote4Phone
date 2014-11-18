@@ -27,22 +27,28 @@ public class MainActivity extends Activity {
 
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
+
             IPeerContext peerContext = IPeerContext.Stub.asInterface(service);
+
             try {
                 IPeerIntent peerIntent = peerContext.newPeerIntent();
-                peerIntent.setPackage("contagious.apps.mediaremote.tablet.PhoneService");
-//                peerIntent.setClassName("contagious.apps.mediaremote.tablet",
-//                        "contagious.apps.mediaremote.tablet.PhoneService");
 
+                peerIntent.setAction("contagious.apps.mediaremote.tablet.MediaRemoteBroadcastReceiver");
                 peerIntent.putStringExtra("ACTION", toggle ? "PLAY" : "PAUSE");
 
                 IPeerIntent callback = peerContext.newPeerIntent();
+
                 callback.setAction(CALLBACK_ACTION);
-                peerContext.startServiceOnPeer(peerIntent, callback);
+                peerContext.sendBroadcastOnPeer(peerIntent,callback);
+
+
             } catch (RemoteException e) {
                 e.printStackTrace();
             }
+
+            // unbind the QPair service.
             unbindService(this);
+
         }
 
         @Override
